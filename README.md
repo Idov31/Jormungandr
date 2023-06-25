@@ -2,8 +2,10 @@
 
 ![image](https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white) ![image](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 
-Jormungandr is a kernel implementation of a COFF loader, allowing kernel developers to load and execute their COFFs in the kernel.
+Jormungandr is a kernel implementation of a [COFF](https://en.wikipedia.org/wiki/COFF) loader, allowing kernel developers to load and execute their COFFs in the kernel.
 The **only** supported type of COFF is an x64 kernel COFF (meaning, a COFF that uses functions from either NTOSKRNL or SSDT). This project is not supported to run with [VBS](https://learn.microsoft.com/en-us/windows-hardware/design/device-experiences/oem-hvci-enablement) enabled because it is using pools with execute permissions but this project should work for any version of Windows starting from Windows 7.
+
+If you are unfamiliar with COFF and COFF loading, please refer to [TrustedSec's blog post about COFF loaders](https://www.trustedsec.com/blog/coffloader-building-your-own-in-memory-loader-or-how-to-run-bofs/).
 
 ## Basic Usage
 
