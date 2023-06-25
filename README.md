@@ -99,3 +99,9 @@ After the reboot, you can see the debugging messages in tools such as [DebugView
 ## Resources
 
 - [TrustedSec's COFFLoader](https://github.com/trustedsec/COFFLoader)
+
+## Contributions
+
+Thanks a lot to those people that contributed to this project:
+
+- [BlackOfWorld](https://github.com/BlackOfWorld)

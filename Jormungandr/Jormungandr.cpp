@@ -51,6 +51,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) 
 */
 NTSTATUS JormungandrWrite(PDEVICE_OBJECT, PIRP Irp) {
 	NTSTATUS status = STATUS_SUCCESS;
+	COFFLdr* coffLoader = NULL;
 	SIZE_T len = 0;
 	auto stack = IoGetCurrentIrpStackLocation(Irp);
 
@@ -61,7 +62,7 @@ NTSTATUS JormungandrWrite(PDEVICE_OBJECT, PIRP Irp) {
 		goto Exit;
 	}
 
-	COFFLdr* coffLoader = new COFFLdr((COFFData*)Irp->AssociatedIrp.SystemBuffer);
+	coffLoader = new COFFLdr((COFFData*)Irp->AssociatedIrp.SystemBuffer);
 	status = coffLoader->IsInitialized();
 
 	if (!NT_SUCCESS(status)) {
@@ -77,11 +78,13 @@ NTSTATUS JormungandrWrite(PDEVICE_OBJECT, PIRP Irp) {
 	KdPrint((DRIVER_PREFIX "Loaded COFF, now executing...\n"));
 	coffLoader->Execute();
 	KdPrint((DRIVER_PREFIX "COFF executed.\n"));
-	delete coffLoader;
 
 	len += sizeof(COFFData);
 
 Exit:
+	if (coffLoader)
+		delete coffLoader;
+
 	Irp->IoStatus.Status = status;
 	Irp->IoStatus.Information = len;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
