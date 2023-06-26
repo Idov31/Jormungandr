@@ -4,9 +4,9 @@
 
 COFFLdr::COFFLdr(COFFData* CoffData) {
 	SIZE_T bytesWritten = 0;
-	Data = NULL;
 	DataSize = 0;
 	Coff.Initialized = STATUS_SUCCESS;
+	Data = NULL;
 	EntryName = (PCHAR)ExAllocatePoolWithTag(NonPagedPool, sizeof(CoffData->EntryName), DRIVER_TAG);
 
 	if (!EntryName) {
@@ -21,12 +21,18 @@ COFFLdr::COFFLdr(COFFData* CoffData) {
 
 	if (CoffData->DataSize > 0 && CoffData->Data) {
 		DataSize = CoffData->DataSize;
+		Data = (PVOID)ExAllocatePoolWithTag(NonPagedPool, sizeof(CoffData->DataSize), DRIVER_TAG);
+
+		if (!Data) {
+			Coff.Initialized = STATUS_ABANDONED;
+			goto Cleanup;
+		}
 
 		Coff.Initialized = MmCopyVirtualMemory(PsGetCurrentProcess(), CoffData->Data, PsGetCurrentProcess(), Data, sizeof(CoffData->DataSize), KernelMode, &bytesWritten);
 
 		if (!NT_SUCCESS(Coff.Initialized)) {
-			ExFreePoolWithTag(EntryName, DRIVER_TAG);
-			return;
+			Coff.Initialized = STATUS_ABANDONED;
+			goto Cleanup;
 		}
 	}
 
@@ -36,17 +42,24 @@ COFFLdr::COFFLdr(COFFData* CoffData) {
 	Coff.SecMap = (PSECTION_MAP)ExAllocatePoolWithTag(NonPagedPoolExecute, Coff.Header->NumberOfSections * sizeof(SECTION_MAP), DRIVER_TAG);
 
 	if (!Coff.SecMap) {
-		ExFreePoolWithTag(EntryName, DRIVER_TAG);
 		Coff.Initialized = STATUS_ABANDONED;
-		return;
+		goto Cleanup;
 	}
 	Coff.FunMap = (PCHAR)ExAllocatePoolWithTag(NonPagedPool, COFF_FUNMAP_SIZE, DRIVER_TAG);
 
 	if (!Coff.FunMap) {
-		ExFreePoolWithTag(EntryName, DRIVER_TAG);
-		ExFreePoolWithTag(Coff.SecMap, DRIVER_TAG);
 		Coff.Initialized = STATUS_ABANDONED;
-		return;
+		goto Cleanup;
+	}
+
+Cleanup:
+	if (!NT_SUCCESS(Coff.Initialized)) {
+		if (Coff.SecMap)
+			ExFreePoolWithTag(Coff.SecMap, DRIVER_TAG);
+		if (Data)
+			ExFreePoolWithTag(Data, DRIVER_TAG);
+		if (EntryName)
+			ExFreePoolWithTag(EntryName, DRIVER_TAG);
 	}
 }
 
@@ -62,8 +75,6 @@ COFFLdr::COFFLdr(COFFData* CoffData) {
 */
 NTSTATUS COFFLdr::Load() {
 	NTSTATUS status = STATUS_SUCCESS;
-	PVOID currentSection = NULL;
-	SIZE_T currentSectionSize = 0;
 	SIZE_T bytesWritten = 0;
 
 	for (UINT16 i = 0; i < Coff.Header->NumberOfSections; i++) {
@@ -84,8 +95,6 @@ NTSTATUS COFFLdr::Load() {
 
 		if (!NT_SUCCESS(status))
 			goto Cleanup;
-
-		currentSection = NULL;
 	}
 
 	status = ProcessSections();
@@ -117,7 +126,6 @@ Cleanup:
 NTSTATUS COFFLdr::Execute() {
 	tMainFunction Main = NULL;
 	NTSTATUS status = STATUS_NOT_FOUND;
-	UINT32 oldProtection = 0;
 
 	for (UINT32 index = 0; index < Coff.Header->NumberOfSymbols; index++) {
 		if (Coff.Symbol[index].First.Name[0]) {
@@ -337,6 +345,7 @@ COFFLdr::~COFFLdr() {
 	if (NT_SUCCESS(Coff.Initialized)) {
 		ExFreePoolWithTag(Coff.FunMap, DRIVER_TAG);
 		ExFreePoolWithTag(Coff.SecMap, DRIVER_TAG);
+		ExFreePoolWithTag(Data, DRIVER_TAG);
 		ExFreePoolWithTag(EntryName, DRIVER_TAG);
 	}
 }
